@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: huddle-planning-poker
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/planning_poker}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+  flyway:
+    enabled: true
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  # 0.0.0.0 = reachable from every colleague on the LAN, not only from this laptop
+  address: 0.0.0.0
+  port: ${PORT:8080}
+  compression:
+    enabled: true
+  servlet:
+    session:
+      persistent: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    root: INFO
