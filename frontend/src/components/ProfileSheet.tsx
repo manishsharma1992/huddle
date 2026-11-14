@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { type Account, displayName } from '../lib/account';
 import { t } from '../lib/i18n';
 import { identity } from '../lib/identity';
 import type { Participant, Seat } from '../lib/types';
 import { AvatarPicker, Button, Field, RoleToggle, Sheet } from './ui';
 
-export default function ProfileSheet({ open, onClose, me, seat, onError, onLeave }: {
+export default function ProfileSheet({ open, onClose, me, seat, account, onError, onLeave }: {
+  account: Account;
   open: boolean;
   onClose: () => void;
   me: Participant;
@@ -13,13 +15,13 @@ export default function ProfileSheet({ open, onClose, me, seat, onError, onLeave
   onError: (e: unknown) => void;
   onLeave: () => void;
 }) {
-  const [name, setName] = useState(me.name);
+  // Your name follows your sign-in ("Manish SHARMA"); change it from the lobby's "Change" link.
+  const name = displayName(account);
   const [avatar, setAvatar] = useState(me.avatar);
   const [role, setRole] = useState(me.role);
 
   useEffect(() => {
     if (open) {
-      setName(me.name);
       setAvatar(me.avatar);
       setRole(me.role);
     }
@@ -27,8 +29,8 @@ export default function ProfileSheet({ open, onClose, me, seat, onError, onLeave
 
   async function save() {
     try {
-      await api.updateProfile(seat, { name: name.trim(), avatar, role });
-      identity.saveProfile({ name: name.trim(), avatar });
+      await api.updateProfile(seat, { name, avatar, role });
+      identity.saveProfile({ name, avatar });
       onClose();
     } catch (e) {
       onError(e);
@@ -47,9 +49,12 @@ export default function ProfileSheet({ open, onClose, me, seat, onError, onLeave
   return (
     <Sheet open={open} onClose={onClose} title={t.youAtTable}>
       <div className="profile">
-        <Field label={t.name}>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={30} />
-        </Field>
+        <div className="field">
+          <span className="field-label">{t.name}</span>
+          <p className="profile-name">
+            <strong>{name}</strong> · <span className="muted">{account.team}</span>
+          </p>
+        </div>
         <Field label={t.character} group>
           <AvatarPicker value={avatar} onChange={setAvatar} />
         </Field>
@@ -60,7 +65,7 @@ export default function ProfileSheet({ open, onClose, me, seat, onError, onLeave
           <Button variant="danger" onClick={leave}>
             {t.leaveTable}
           </Button>
-          <Button variant="primary" onClick={save} disabled={!name.trim()}>
+          <Button variant="primary" onClick={save} >
             {t.save}
           </Button>
         </div>

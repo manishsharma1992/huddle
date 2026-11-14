@@ -29,7 +29,7 @@ class PokerSessionTest {
     void setUp() {
         ana = ParticipantId.newId();
         table = PokerSession.open(SessionId.newId(), SessionCode.generate(random), new SessionName("Sprint 42"),
-                DeckType.FIBONACCI, ana, AccessKey.generate(random), new DisplayName("Ana"), new Avatar("🦊"), t0);
+                new TeamName("Credit Rating Framework - Next"), DeckType.FIBONACCI, ana, AccessKey.generate(random), new DisplayName("Ana"), new Avatar("🦊"), t0);
         bo = seat("Bo");
         cy = seat("Cy");
         login = table.addStories(ana, List.of(new StoryTitle("Login with SSO")), t0).getFirst();
@@ -125,6 +125,12 @@ class PokerSessionTest {
         assertThat(table.activeStory()).get().extracting(Story::id).isEqualTo(search);
         assertThat(table.stories().getFirst().status()).isEqualTo(StoryStatus.PENDING);
         assertThat(table.stories().getFirst().votes()).isEmpty();
+    }
+
+    @Test
+    void a_table_remembers_its_team_and_rejects_a_blank_one() {
+        assertThat(table.team()).get().extracting(TeamName::value).isEqualTo("Credit Rating Framework - Next");
+        assertThatThrownBy(() -> new TeamName("   ")).isInstanceOf(DomainRuleViolation.class);
     }
 
     @Test

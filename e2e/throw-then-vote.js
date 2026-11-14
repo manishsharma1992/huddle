@@ -1,5 +1,15 @@
 const helpers = require(`${process.env.PW_SKILL_DIR}/lib/helpers`);
 const TARGET = process.env.TARGET_URL || 'http://localhost:8090';
+// Huddle now asks who you are before anything else; tests sign in by seeding the browser's account
+// (and mark the tours as seen so they don't cover the table).
+const signIn = async (page, name) => {
+  await page.evaluate((n) => {
+    const a = { email: `${n.toLowerCase().replace(/\W+/g, '.')}@bnpparibas.com`, firstName: n, lastName: 'E2E', team: 'E2E Team' };
+    localStorage.setItem('huddle.account', JSON.stringify(a));
+    localStorage.setItem('huddle.tours', JSON.stringify({ [`${a.email}:lobby`]: true, [`${a.email}:table`]: true }));
+  }, name);
+  await page.reload();
+};
 
 (async () => {
 const browser = await helpers.launchBrowser('chromium');
@@ -19,7 +29,7 @@ try {
 
   const host = await mk();
   await host.goto(TARGET);
-  await host.getByPlaceholder('Alex').fill('Host');
+  await signIn(host, 'Host');
   await host.getByRole('button', { name: 'Open table' }).click();
   await host.waitForURL('**/t/*');
   const code = host.url().split('/t/')[1];
@@ -28,23 +38,23 @@ try {
 
   const kenji = await mk();
   await kenji.goto(`${TARGET}/t/${code}`);
-  await kenji.getByPlaceholder('Alex').fill('Kenji');
+  await signIn(kenji, 'Kenji');
   await kenji.getByRole('button', { name: 'Take a seat' }).click();
   await kenji.locator('.poker-table').waitFor();
 
   const scenarios = [
     { name: 'plain vote (control)', prep: async () => {} },
     { name: 'throw, Escape, then vote (original e2e)', prep: async () => {
-        await kenji.getByRole('button', { name: /^Host, .*Open actions/ }).click();
+        await kenji.getByRole('button', { name: /^Host E2E, .*Open actions/ }).click();
         await kenji.getByRole('button', { name: 'Throw ✈️' }).click();
         await kenji.keyboard.press('Escape');
       } },
     { name: 'menu still open, then vote', prep: async () => {
-        await kenji.getByRole('button', { name: /^Host, .*Open actions/ }).click();
+        await kenji.getByRole('button', { name: /^Host E2E, .*Open actions/ }).click();
         await kenji.getByRole('button', { name: 'Throw 🍅' }).click();
       } },
     { name: 'throw, then vote immediately while projectile flies', prep: async () => {
-        await kenji.getByRole('button', { name: /^Host, .*Open actions/ }).click();
+        await kenji.getByRole('button', { name: /^Host E2E, .*Open actions/ }).click();
         await kenji.getByRole('button', { name: 'Throw ⭐' }).click();
         await kenji.mouse.click(5, 400);
       } },

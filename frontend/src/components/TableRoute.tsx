@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import type { Prefs } from '../App';
 import { api, ApiError } from '../lib/api';
+import { type Account, displayName } from '../lib/account';
 import { t } from '../lib/i18n';
 import { AVATARS, identity } from '../lib/identity';
 import type { Seat, Table } from '../lib/types';
@@ -15,7 +16,13 @@ type State =
   | { phase: 'join'; table: Table }
   | { phase: 'seated'; seat: Seat };
 
-export default function TableRoute({ code, prefs, setPrefs, onExit }: { code: string; prefs: Prefs; setPrefs: (p: Prefs) => void; onExit: () => void }) {
+export default function TableRoute({ code, account, prefs, setPrefs, onExit }: {
+  code: string;
+  account: Account;
+  prefs: Prefs;
+  setPrefs: (p: Prefs) => void;
+  onExit: () => void;
+}) {
   const [state, setState] = useState<State>({ phase: 'loading' });
 
   useEffect(() => {
@@ -65,11 +72,12 @@ export default function TableRoute({ code, prefs, setPrefs, onExit }: { code: st
     );
   }
   if (state.phase === 'join') {
-    return <JoinTable table={state.table} onSeated={(seat) => setState({ phase: 'seated', seat })} onExit={onExit} />;
+    return <JoinTable table={state.table} account={account} onSeated={(seat) => setState({ phase: 'seated', seat })} onExit={onExit} />;
   }
   return (
     <TableScreen
       seat={state.seat}
+      account={account}
       prefs={prefs}
       setPrefs={setPrefs}
       onExit={onExit}
@@ -81,9 +89,10 @@ export default function TableRoute({ code, prefs, setPrefs, onExit }: { code: st
   );
 }
 
-function JoinTable({ table, onSeated, onExit }: { table: Table; onSeated: (seat: Seat) => void; onExit: () => void }) {
+function JoinTable({ table, account, onSeated, onExit }: { table: Table; account: Account; onSeated: (seat: Seat) => void; onExit: () => void }) {
   const saved = identity.profile();
-  const [name, setName] = useState(saved.name);
+  // Your name comes from your sign-in: "Manish SHARMA", the same at every table.
+  const name = displayName(account);
   const [avatar, setAvatar] = useState(saved.avatar || AVATARS[Math.floor(Math.random() * AVATARS.length)]);
   const [role, setRole] = useState<'VOTER' | 'OBSERVER'>('VOTER');
   const [error, setError] = useState<string | null>(null);
@@ -93,8 +102,8 @@ function JoinTable({ table, onSeated, onExit }: { table: Table; onSeated: (seat:
     e.preventDefault();
     setBusy(true);
     try {
-      identity.saveProfile({ name: name.trim(), avatar });
-      const seat = await api.takeSeat(table.code, { name: name.trim(), avatar, role });
+      identity.saveProfile({ name, avatar });
+      const seat = await api.takeSeat(table.code, { name, avatar, role });
       identity.saveSeat(seat);
       onSeated(seat);
     } catch (err) {
@@ -130,9 +139,7 @@ function JoinTable({ table, onSeated, onExit }: { table: Table; onSeated: (seat:
           </span>
         </div>
 
-        <Field label={t.yourName}>
-          <input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={30} required placeholder="Alex" />
-        </Field>
+        <p className="join-as">{t.appearAs(name)}</p>
         <Field label={t.yourCharacter} group>
           <AvatarPicker value={avatar} onChange={setAvatar} />
         </Field>
@@ -140,10 +147,9 @@ function JoinTable({ table, onSeated, onExit }: { table: Table; onSeated: (seat:
           <RoleToggle value={role} onChange={setRole} label={t.hereTo} labels={{ VOTER: t.playCards, OBSERVER: t.justWatch }} pillId="role-pill" />
         </Field>
         {error && <p className="error-text">{error}</p>}
-        <Button variant="primary" size="lg" type="submit" disabled={busy || !name.trim()}>
+        <Button variant="primary" size="lg" type="submit" disabled={busy}>
           {busy ? t.pullingChair : t.takeSeat}
         </Button>
-        {!name.trim() && <p className="field-hint cta-hint">{t.nameFirst}</p>}
       </motion.form>
     </div>
   );

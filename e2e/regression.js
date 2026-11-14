@@ -1,6 +1,16 @@
 const path = require('node:path');
 const helpers = require(`${process.env.PW_SKILL_DIR}/lib/helpers`);
 const TARGET = process.env.TARGET_URL || 'http://localhost:8090';
+// Huddle now asks who you are before anything else; tests sign in by seeding the browser's account
+// (and mark the tours as seen so they don't cover the table).
+const signIn = async (page, name) => {
+  await page.evaluate((n) => {
+    const a = { email: `${n.toLowerCase().replace(/\W+/g, '.')}@bnpparibas.com`, firstName: n, lastName: 'E2E', team: 'E2E Team' };
+    localStorage.setItem('huddle.account', JSON.stringify(a));
+    localStorage.setItem('huddle.tours', JSON.stringify({ [`${a.email}:lobby`]: true, [`${a.email}:table`]: true }));
+  }, name);
+  await page.reload();
+};
 const OUT = process.env.PW_ARTIFACT_DIR;
 const results = [];
 const check = (name, ok, extra = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? '  ' + extra : ''}`); };
@@ -18,7 +28,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
   try {
     const host = await mk('host', 1440, 900);
     await host.goto(TARGET);
-    await host.getByPlaceholder('Alex').fill('Host');
+    await signIn(host, 'Host');
     await host.getByRole('button', { name: 'Open table' }).click();
     await host.waitForURL('**/t/*');
     const code = host.url().split('/t/')[1];
@@ -30,7 +40,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     for (const name of ['Tapper', 'Typer', 'Flicker', 'Thrower']) {
       const g = await mk(name);
       await g.goto(`${TARGET}/t/${code}`);
-      await g.getByPlaceholder('Alex').fill(name);
+      await signIn(g, name);
       await g.getByRole('button', { name: 'Take a seat' }).click();
       await g.locator('.poker-table').waitFor();
       guests.push(g);
@@ -57,7 +67,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
     await flicker.mouse.down();
     for (let i = 1; i <= 5; i++) { await flicker.mouse.move(b.x + b.width / 2, b.y + b.height - 20 - i * 18); await flicker.waitForTimeout(8); }
     await flicker.mouse.up();
-    await thrower.getByRole('button', { name: /^Host, .*Open actions/ }).click();
+    await thrower.getByRole('button', { name: /^Host E2E, .*Open actions/ }).click();
     await thrower.getByRole('button', { name: 'Throw 🍅' }).click();
     await thrower.keyboard.press('Escape');
     await card(thrower, '5').click();

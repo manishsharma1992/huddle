@@ -43,7 +43,7 @@ class TableController {
     @PostMapping("/tables")
     @ResponseStatus(HttpStatus.CREATED)
     SeatView open(@Valid @RequestBody OpenTableRequest request) {
-        return tables.openTable(new OpenTable(request.name(), request.deckType(), request.yourName(), request.avatar()));
+        return tables.openTable(new OpenTable(request.name(), request.team(), request.deckType(), request.yourName(), request.avatar()));
     }
 
     @GetMapping("/tables/{code}")

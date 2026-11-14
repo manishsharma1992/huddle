@@ -62,7 +62,8 @@ public class PokerSessionService {
 
         ParticipantId facilitator = ParticipantId.newId();
         AccessKey key = AccessKey.generate(random);
-        PokerSession session = PokerSession.open(SessionId.newId(), code, new SessionName(command.name()), deck,
+        TeamName team = command.team() == null || command.team().isBlank() ? null : new TeamName(command.team());
+        PokerSession session = PokerSession.open(SessionId.newId(), code, new SessionName(command.name()), team, deck,
                 facilitator, key, new DisplayName(command.facilitatorName()), avatar(command.facilitatorAvatar()),
                 clock.instant());
         transactions.inTransaction(() -> {

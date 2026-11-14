@@ -67,12 +67,13 @@ class JdbcPokerSessionRepository implements PokerSessionRepository {
                 throw new ConcurrentModification(session.code());
             }
             jdbc.sql("""
-                            insert into poker_session (id, code, name, deck_type, facilitator_id, timer_ends_at,
+                            insert into poker_session (id, code, name, team, deck_type, facilitator_id, timer_ends_at,
                                                        created_at, updated_at, version)
-                            values (:id, :code, :name, :deck, :facilitator, :timer, :created, :now, 1)""")
+                            values (:id, :code, :name, :team, :deck, :facilitator, :timer, :created, :now, 1)""")
                     .param("id", id)
                     .param("code", session.code().value())
                     .param("name", session.name().value())
+                    .param("team", session.team().map(TeamName::value).orElse(null))
                     .param("deck", session.deckType().name())
                     .param("facilitator", session.facilitatorId().map(ParticipantId::value).orElse(null))
                     .param("timer", session.timerEndsAt().map(Timestamp::from).orElse(null))
@@ -188,6 +189,7 @@ class JdbcPokerSessionRepository implements PokerSessionRepository {
                 new SessionId(id),
                 new SessionCode(rs.getString("code")),
                 new SessionName(rs.getString("name")),
+                rs.getString("team") == null ? null : new TeamName(rs.getString("team")),
                 deckType,
                 instant(rs, "created_at"),
                 facilitator == null ? null : new ParticipantId(facilitator),

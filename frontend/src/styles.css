@@ -2955,3 +2955,228 @@ kbd.kbd-hint {
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
+
+/* ==========================================================================
+   Sign-in, account and team (2026-11-14)
+   ========================================================================== */
+.login-screen {
+  padding: 24px 16px 48px;
+  gap: 18px;
+  align-content: center;
+}
+.login-brand {
+  display: flex;
+  justify-content: center;
+}
+.login-panel {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 16px;
+}
+.login-title {
+  font-family: var(--font-rounded);
+  font-size: clamp(1.7rem, 4vw, 2.2rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.login-names {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 480px) {
+  .login-names {
+    grid-template-columns: 1fr;
+  }
+}
+.input-caps {
+  text-transform: uppercase;
+}
+.input-caps::placeholder {
+  text-transform: none;
+}
+.field-required {
+  color: var(--danger);
+  font-weight: 700;
+}
+.field.has-error .input {
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+}
+.field-error {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--danger);
+}
+.login-preview {
+  margin: -4px 0 0;
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 650;
+  overflow: hidden;
+}
+.join-as {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.profile-name {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* the signed-in chip in the lobby header */
+.lobby-top {
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.account-chip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 13.5px;
+}
+.account-who {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.account-label {
+  color: var(--ink-3);
+}
+.account-team {
+  color: var(--ink-2);
+}
+.account-team::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--ink-3);
+}
+.account-actions {
+  display: flex;
+  gap: 2px;
+}
+.account-actions .link {
+  font-size: 13.5px;
+}
+.link.subtle-ink {
+  color: var(--ink-2);
+}
+@media (max-width: 640px) {
+  .account-chip {
+    width: 100%;
+    border-radius: var(--r-md);
+    justify-content: space-between;
+  }
+  .account-label {
+    display: none;
+  }
+}
+
+/* live tables, grouped by team */
+.recent-group + .recent-group {
+  margin-top: 14px;
+}
+.recent-group-title {
+  /* team names keep their own casing ("Credit Rating Framework - Next"), so no all-caps here */
+  margin: 0 0 6px 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.recent-group.is-mine .recent-group-title {
+  color: var(--accent-text);
+}
+
+/* ---------- guided tour */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+.tour-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 16, 12, 0.55);
+}
+.tour-spotlight {
+  position: fixed;
+  border-radius: 16px;
+  box-shadow: 0 0 0 200vmax rgba(8, 16, 12, 0.55), 0 0 0 2px rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+.tour-spotlight.is-animated {
+  transition: top 0.35s cubic-bezier(0.2, 0.9, 0.25, 1), left 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
+    width 0.35s cubic-bezier(0.2, 0.9, 0.25, 1), height 0.35s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.tour-card {
+  position: fixed;
+  display: grid;
+  gap: 8px;
+  padding: 18px 18px 14px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-3);
+}
+.tour-count {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.tour-title {
+  font-family: var(--font-rounded);
+  font-size: 20px;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+}
+.tour-body {
+  color: var(--ink-2);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+.tour-skip {
+  color: var(--ink-2);
+  font-weight: 550;
+  padding-left: 0;
+}
+.tour-nav {
+  display: flex;
+  gap: 6px;
+}
+.tour-dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+.tour-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.tour-dots i.is-on {
+  background: var(--accent);
+}
+.tour-replay {
+  margin-top: 14px;
+  width: 100%;
+}

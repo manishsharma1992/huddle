@@ -22,7 +22,7 @@ class JdbcTableDirectory implements TableDirectory {
     @Override
     public List<TableSummaryView> activeSince(Instant since, int limit) {
         return jdbc.sql("""
-                        select s.code, s.name, s.updated_at,
+                        select s.code, s.name, s.team, s.updated_at,
                                (select count(*) from participant p where p.session_id = s.id) as people
                           from poker_session s
                          where s.updated_at > :since
@@ -30,7 +30,7 @@ class JdbcTableDirectory implements TableDirectory {
                          limit :limit""")
                 .param("since", Timestamp.from(since))
                 .param("limit", limit)
-                .query((rs, row) -> new TableSummaryView(rs.getString("code"), rs.getString("name"),
+                .query((rs, row) -> new TableSummaryView(rs.getString("code"), rs.getString("name"), rs.getString("team"),
                         rs.getInt("people"), rs.getTimestamp("updated_at").toInstant().toEpochMilli()))
                 .list();
     }

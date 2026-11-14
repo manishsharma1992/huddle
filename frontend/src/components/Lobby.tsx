@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import { type Account, accounts, displayName } from '../lib/account';
 import { api } from '../lib/api';
 import { pointsLabel, sizePoints } from '../lib/cards';
 import { t } from '../lib/i18n';
@@ -8,6 +9,7 @@ import { AVATARS, identity } from '../lib/identity';
 import type { Deck, TableSummary } from '../lib/types';
 import { AvatarPicker, Button, Field, bouncy, spring } from './ui';
 import { PlayingCard } from './PlayingCard';
+import Tour, { buildSteps } from './Tour';
 
 const HERO_CARDS = ['1', '3', '5', '8', '13'];
 const LIVE_LIMIT = 5;
@@ -20,13 +22,20 @@ function timeAgo(ms: number) {
   return t.hAgo(Math.round(minutes / 60));
 }
 
-export default function Lobby({ onEnter }: { onEnter: (code: string) => void }) {
+export default function Lobby({ account, onEnter, onEditAccount, onSignOut }: {
+  account: Account;
+  onEnter: (code: string) => void;
+  onEditAccount: () => void;
+  onSignOut: () => void;
+}) {
   const saved = identity.profile();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [recent, setRecent] = useState<TableSummary[] | null>(null);
   const [tableName, setTableName] = useState('');
   const [deckType, setDeckType] = useState('FIBONACCI');
-  const [name, setName] = useState(saved.name);
+  const name = displayName(account);
+  // First visit after signing in: show the tour once (per person on this computer).
+  const [touring, setTouring] = useState(() => !accounts.tourSeen(account.email, 'lobby'));
   const [avatar, setAvatar] = useState(saved.avatar || AVATARS[Math.floor(Math.random() * 12)]);
   const [joinCode, setJoinCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -44,7 +53,7 @@ export default function Lobby({ onEnter }: { onEnter: (code: string) => void }) 
     setError(null);
     try {
       identity.saveProfile({ name: name.trim(), avatar });
-      const seat = await api.open({ name: tableName.trim() || t.tableOf(name.trim()), deckType, yourName: name.trim(), avatar });
+      const seat = await api.open({ name: tableName.trim() || t.tableOf(account.firstName), team: account.team, deckType, yourName: name, avatar });
       identity.saveSeat(seat);
       onEnter(seat.code);
     } catch (err) {
@@ -65,13 +74,50 @@ export default function Lobby({ onEnter }: { onEnter: (code: string) => void }) 
   const selectedDeck = decks.find((d) => d.type === deckType);
   // Only tables people are actually at, freshest first; empty or day-old tables are noise.
   const live = (recent ?? []).filter((r) => r.participantCount > 0 && Date.now() - r.updatedAt < STALE_MS);
-  const shownLive = showAllLive ? live : live.slice(0, LIVE_LIMIT);
+  // Grouped by team: yours first (all of it), then other teams, then tables opened before teams existed.
+  const sameTeam = (team: string | null) => !!team && team.trim().toLowerCase() === account.team.trim().toLowerCase();
+  const mine = live.filter((r) => sameTeam(r.team));
+  const others = live.filter((r) => !sameTeam(r.team));
+  const otherTeams = [...new Set(others.map((r) => r.team).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b));
+  const groups = [
+    ...(mine.length ? [{ key: 'mine', title: `${t.yourTeam} · ${account.team}`, items: mine }] : []),
+    ...otherTeams.map((team) => ({ key: team, title: team, items: others.filter((r) => r.team === team) })),
+    ...(others.some((r) => !r.team) ? [{ key: 'none', title: t.otherTables, items: others.filter((r) => !r.team) }] : []),
+  ];
+  let budget = showAllLive ? Infinity : LIVE_LIMIT;
+  const shownGroups = groups
+    .map((g) => {
+      if (g.key === 'mine') return g;
+      const items = g.items.slice(0, Math.max(0, budget));
+      budget -= items.length;
+      return { ...g, items };
+    })
+    .filter((g) => g.items.length > 0);
+  const hiddenCount = live.length - shownGroups.reduce((n, g) => n + g.items.length, 0);
 
   return (
     <div className="lobby">
       <div className="lobby-glow" aria-hidden />
       <header className="lobby-top">
         <Logo />
+        <div className="account-chip">
+          <span className="account-who">
+            <span className="account-label">{t.signedInAs}</span>
+            <strong>{name}</strong>
+            <span className="account-team">{account.team}</span>
+          </span>
+          <span className="account-actions">
+            <button type="button" className="link" onClick={() => setTouring(true)}>
+              {t.takeTour}
+            </button>
+            <button type="button" className="link" onClick={onEditAccount}>
+              {t.changeDetails}
+            </button>
+            <button type="button" className="link subtle-ink" onClick={onSignOut}>
+              {t.signOut}
+            </button>
+          </span>
+        </div>
       </header>
 
       <section className="hero">
@@ -104,10 +150,7 @@ export default function Lobby({ onEnter }: { onEnter: (code: string) => void }) 
         <motion.form className="panel create" onSubmit={create} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.2 }}>
           <h2>{t.openTable}</h2>
           <Field label={t.refiningLabel}>
-            <input className="input" value={tableName} onChange={(e) => setTableName(e.target.value)} placeholder={name.trim() ? t.tableOf(name.trim()) : t.refiningPlaceholder} maxLength={80} />
-          </Field>
-          <Field label={t.yourName}>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Alex" maxLength={30} required />
+            <input className="input" value={tableName} onChange={(e) => setTableName(e.target.value)} placeholder={t.tableOf(account.firstName)} maxLength={80} />
           </Field>
           <Field label={t.yourCharacter} group>
             <AvatarPicker value={avatar} onChange={setAvatar} />
@@ -154,10 +197,9 @@ export default function Lobby({ onEnter }: { onEnter: (code: string) => void }) 
               )}
             </AnimatePresence>
           </Field>
-          <Button variant="primary" size="lg" type="submit" disabled={busy || !name.trim()}>
+          <Button variant="primary" size="lg" type="submit" disabled={busy}>
             {busy ? t.settingTable : t.openTableCta}
           </Button>
-          {!name.trim() && <p className="field-hint cta-hint">{t.nameFirst}</p>}
         </motion.form>
 
         <motion.div className="side-stack" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring, delay: 0.28 }}>
@@ -190,21 +232,26 @@ export default function Lobby({ onEnter }: { onEnter: (code: string) => void }) 
             ) : live.length === 0 ? (
               <p className="muted">{t.noTablesYet}</p>
             ) : (
-              <ul className="recent-list">
-                {shownLive.map((table, i) => (
-                  <motion.li key={table.code} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ ...spring, delay: 0.3 + i * 0.04 }}>
-                    <button className="recent-item" onClick={() => onEnter(table.code)}>
-                      <span className="recent-name">{table.name}</span>
-                      <span className="recent-meta">
-                        {t.people(table.participantCount)} · {timeAgo(table.updatedAt)}
-                      </span>
-                      <span className="recent-code">{table.code}</span>
-                    </button>
-                  </motion.li>
-                ))}
-              </ul>
+              shownGroups.map((group) => (
+                <section key={group.key} className={`recent-group ${group.key === 'mine' ? 'is-mine' : ''}`} aria-label={group.title}>
+                  <h3 className="recent-group-title">{group.title}</h3>
+                  <ul className="recent-list">
+                    {group.items.map((table, i) => (
+                      <motion.li key={table.code} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ ...spring, delay: 0.2 + i * 0.04 }}>
+                        <button className="recent-item" onClick={() => onEnter(table.code)}>
+                          <span className="recent-name">{table.name}</span>
+                          <span className="recent-meta">
+                            {t.people(table.participantCount)} · {timeAgo(table.updatedAt)}
+                          </span>
+                          <span className="recent-code">{table.code}</span>
+                        </button>
+                      </motion.li>
+                    ))}
+                  </ul>
+                </section>
+              ))
             )}
-            {live.length > LIVE_LIMIT && (
+            {(hiddenCount > 0 || showAllLive) && live.length > LIVE_LIMIT && (
               <button type="button" className="link show-more" onClick={() => setShowAllLive((v) => !v)}>
                 {showAllLive ? t.showLess : t.showAll(live.length)}
               </button>
@@ -212,6 +259,27 @@ export default function Lobby({ onEnter }: { onEnter: (code: string) => void }) 
           </div>
         </motion.div>
       </section>
+
+      {touring && (
+        <Tour
+          label={t.takeTour}
+          steps={buildSteps(
+            t.lobbyTour,
+            [
+              ['welcome', undefined],
+              ['join', '.panel.join'],
+              ['live', '.panel.recent'],
+              ['create', '.panel.create'],
+              ['account', '.account-chip'],
+            ],
+            account.firstName,
+          )}
+          onClose={() => {
+            accounts.markTourSeen(account.email, 'lobby');
+            setTouring(false);
+          }}
+        />
+      )}
 
       <AnimatePresence>
         {error && (

@@ -13,7 +13,7 @@ final class Requests {
     private Requests() {
     }
 
-    record OpenTableRequest(@NotBlank @Size(max = 80) String name, String deckType,
+    record OpenTableRequest(@NotBlank @Size(max = 80) String name, @Size(max = 80) String team, String deckType,
                             @NotBlank @Size(max = 30) String yourName, String avatar) {
     }
 

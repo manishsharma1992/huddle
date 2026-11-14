@@ -36,6 +36,7 @@ public class PokerSession extends AggregateRoot<SessionId, PokerSessionEvent> {
     private final SessionId id;
     private final SessionCode code;
     private final SessionName name;
+    private final TeamName team;
     private final DeckType deckType;
     private final Instant createdAt;
     private final Map<ParticipantId, Participant> participants = new LinkedHashMap<>();
@@ -44,10 +45,12 @@ public class PokerSession extends AggregateRoot<SessionId, PokerSessionEvent> {
     private Instant timerEndsAt;
     private final long version;
 
-    private PokerSession(SessionId id, SessionCode code, SessionName name, DeckType deckType, Instant createdAt, long version) {
+    private PokerSession(SessionId id, SessionCode code, SessionName name, TeamName team, DeckType deckType,
+                         Instant createdAt, long version) {
         this.id = Guard.notNull(id, "Session id");
         this.code = Guard.notNull(code, "Session code");
         this.name = Guard.notNull(name, "Session name");
+        this.team = team;
         this.deckType = Guard.notNull(deckType, "Deck");
         this.createdAt = Guard.notNull(createdAt, "Creation time");
         this.version = version;
@@ -55,11 +58,11 @@ public class PokerSession extends AggregateRoot<SessionId, PokerSessionEvent> {
 
     // ------------------------------------------------------------------ factories
 
-    /** Opens a new table; the person opening it becomes its facilitator. */
-    public static PokerSession open(SessionId id, SessionCode code, SessionName name, DeckType deckType,
+    /** Opens a new table; the person opening it becomes its facilitator. The team is optional. */
+    public static PokerSession open(SessionId id, SessionCode code, SessionName name, TeamName team, DeckType deckType,
                                     ParticipantId facilitatorId, AccessKey facilitatorKey,
                                     DisplayName facilitatorName, Avatar facilitatorAvatar, Instant now) {
-        PokerSession session = new PokerSession(id, code, name, deckType, now, 0);
+        PokerSession session = new PokerSession(id, code, name, team, deckType, now, 0);
         Participant facilitator = new Participant(facilitatorId, facilitatorKey, facilitatorName, facilitatorAvatar,
                 ParticipantRole.VOTER, now);
         session.participants.put(facilitatorId, facilitator);
@@ -69,10 +72,11 @@ public class PokerSession extends AggregateRoot<SessionId, PokerSessionEvent> {
     }
 
     /** Reconstitutes a table from storage. No events are raised. */
-    public static PokerSession restore(SessionId id, SessionCode code, SessionName name, DeckType deckType,
-                                       Instant createdAt, ParticipantId facilitatorId, Instant timerEndsAt,
-                                       Collection<Participant> participants, List<Story> stories, long version) {
-        PokerSession session = new PokerSession(id, code, name, deckType, createdAt, version);
+    public static PokerSession restore(SessionId id, SessionCode code, SessionName name, TeamName team,
+                                       DeckType deckType, Instant createdAt, ParticipantId facilitatorId,
+                                       Instant timerEndsAt, Collection<Participant> participants, List<Story> stories,
+                                       long version) {
+        PokerSession session = new PokerSession(id, code, name, team, deckType, createdAt, version);
         participants.forEach(participant -> session.participants.put(participant.id(), participant));
         session.stories.addAll(stories);
         session.facilitatorId = facilitatorId;
@@ -323,6 +327,10 @@ public class PokerSession extends AggregateRoot<SessionId, PokerSessionEvent> {
 
     public SessionName name() {
         return name;
+    }
+
+    public Optional<TeamName> team() {
+        return Optional.ofNullable(team);
     }
 
     public DeckType deckType() {

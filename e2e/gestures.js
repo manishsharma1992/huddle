@@ -1,11 +1,21 @@
 const helpers = require(`${process.env.PW_SKILL_DIR}/lib/helpers`);
 const TARGET = process.env.TARGET_URL || 'http://localhost:8090';
+// Huddle now asks who you are before anything else; tests sign in by seeding the browser's account
+// (and mark the tours as seen so they don't cover the table).
+const signIn = async (page, name) => {
+  await page.evaluate((n) => {
+    const a = { email: `${n.toLowerCase().replace(/\W+/g, '.')}@bnpparibas.com`, firstName: n, lastName: 'E2E', team: 'E2E Team' };
+    localStorage.setItem('huddle.account', JSON.stringify(a));
+    localStorage.setItem('huddle.tours', JSON.stringify({ [`${a.email}:lobby`]: true, [`${a.email}:table`]: true }));
+  }, name);
+  await page.reload();
+};
 (async () => {
   const browser = await helpers.launchBrowser('chromium');
   try {
     const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
     await page.goto(TARGET);
-    await page.getByPlaceholder('Alex').fill('Solo');
+    await signIn(page, 'Solo');
     await page.getByRole('button', { name: 'Open table' }).click();
     await page.waitForURL('**/t/*');
     await page.getByPlaceholder(/Add a story/).fill('S1');

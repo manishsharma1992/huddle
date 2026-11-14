@@ -67,4 +67,4 @@ export type ChannelMessage =
   | { kind: 'effect'; effect: Effect };
 
 export type Seat = { code: string; participantId: string; accessKey: string };
-export type TableSummary = { code: string; name: string; participantCount: number; updatedAt: number };
+export type TableSummary = { code: string; name: string; team: string | null; participantCount: number; updatedAt: number };

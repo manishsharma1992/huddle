@@ -1,5 +1,15 @@
 const helpers = require(`${process.env.PW_SKILL_DIR}/lib/helpers`);
 const TARGET = process.env.TARGET_URL || 'http://localhost:8090';
+// Huddle now asks who you are before anything else; tests sign in by seeding the browser's account
+// (and mark the tours as seen so they don't cover the table).
+const signIn = async (page, name) => {
+  await page.evaluate((n) => {
+    const a = { email: `${n.toLowerCase().replace(/\W+/g, '.')}@bnpparibas.com`, firstName: n, lastName: 'E2E', team: 'E2E Team' };
+    localStorage.setItem('huddle.account', JSON.stringify(a));
+    localStorage.setItem('huddle.tours', JSON.stringify({ [`${a.email}:lobby`]: true, [`${a.email}:table`]: true }));
+  }, name);
+  await page.reload();
+};
 (async () => {
   const browser = await helpers.launchBrowser('chromium');
   try {
@@ -7,7 +17,7 @@ const TARGET = process.env.TARGET_URL || 'http://localhost:8090';
     const card = (p, l) => p.getByRole('button', { name: `Card ${l}`, exact: true });
     const host = await mk();
     await host.goto(TARGET);
-    await host.getByPlaceholder('Alex').fill('Host');
+    await signIn(host, 'Host');
     await host.getByRole('button', { name: 'Open table' }).click();
     await host.waitForURL('**/t/*');
     const code = host.url().split('/t/')[1];
@@ -17,7 +27,7 @@ const TARGET = process.env.TARGET_URL || 'http://localhost:8090';
     for (const n of ['A', 'B', 'C', 'D']) {
       const g = await mk();
       await g.goto(`${TARGET}/t/${code}`);
-      await g.getByPlaceholder('Alex').fill(n);
+      await signIn(g, n);
       await g.getByRole('button', { name: 'Take a seat' }).click();
       await g.locator('.poker-table').waitFor();
       guests.push(g);

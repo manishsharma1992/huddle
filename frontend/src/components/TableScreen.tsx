@@ -22,6 +22,8 @@ import Results from './Results';
 import Toasts, { ACTION_TOAST_MS, useToasts } from './Toasts';
 import TopBar from './TopBar';
 import InviteSheet from './InviteSheet';
+import Tour, { buildSteps } from './Tour';
+import { type Account, accounts, displayName } from '../lib/account';
 import { Sheet } from './ui';
 
 const CONFETTI_COLORS = ['#0b8457', '#33c08a', '#f5b83d', '#ff7a5c', '#7c6cff', '#3aa0ff'];
@@ -30,12 +32,14 @@ export type RevealHold = { storyId: string; count: number } | null;
 
 export default function TableScreen({
   seat,
+  account,
   prefs,
   setPrefs,
   onExit,
   onLostSeat,
 }: {
   seat: Seat;
+  account: Account;
   prefs: Prefs;
   setPrefs: (p: Prefs) => void;
   onExit: () => void;
@@ -63,6 +67,23 @@ export default function TableScreen({
   tableState.current = table;
 
   const me = table?.participants.find((p) => p.id === seat.participantId) ?? null;
+
+  // The first time you sit at any table, walk through how a round works (once per person on this computer).
+  const meId = me?.id;
+  useEffect(() => {
+    if (!meId || accounts.tourSeen(account.email, 'table')) return;
+    const id = window.setTimeout(() => setTouring(true), 900);
+    return () => window.clearTimeout(id);
+  }, [meId, account.email]);
+
+  // Seats keep the name you had when you sat down; after changing your details, catch the seat up.
+  const wantedName = displayName(account);
+  const staleName = !!me && me.name !== wantedName;
+  useEffect(() => {
+    if (!staleName || !me) return;
+    api.updateProfile(seat, { name: wantedName, avatar: me.avatar, role: me.role }).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staleName, wantedName]);
   const isFacilitator = !!me?.facilitator;
   const activeStory = table?.stories.find((s) => s.id === table.activeStoryId) ?? null;
 
@@ -73,8 +94,9 @@ export default function TableScreen({
 
   // Flavour toasts wait while a drawer or panel is open: they'd cover what the person is working in.
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [touring, setTouring] = useState(false);
   const quiet = useRef(false);
-  quiet.current = backlogOpen || recapOpen || profileOpen || inviteOpen || shortcutsOpen;
+  quiet.current = backlogOpen || recapOpen || profileOpen || inviteOpen || shortcutsOpen || touring;
   const notify = useCallback((text: string, tone: 'info' | 'success' | 'celebrate' = 'info') => {
     if (!quiet.current) toast(text, tone);
   }, [toast]);
@@ -578,9 +600,36 @@ export default function TableScreen({
             </div>
           ))}
         </dl>
+        <button
+          type="button"
+          className="btn btn-soft btn-md tour-replay"
+          onClick={() => {
+            setShortcutsOpen(false);
+            setTouring(true);
+          }}
+        >
+          {t.takeTour}
+        </button>
       </Sheet>
+      {touring && (
+        <Tour
+          label={t.takeTour}
+          steps={buildSteps(t.tableTour, [
+            ['welcome', undefined],
+            ['backlog', '.backlog-toggle, .backlog'],
+            ['felt', '.felt'],
+            ['hand', '.hand-fan, .hand-observer'],
+            ['seats', '.seat:not(.is-me) .seat-avatar, .seat.is-me .seat-avatar'],
+            ['shortcuts', '.kbd-btn'],
+          ])}
+          onClose={() => {
+            accounts.markTourSeen(account.email, 'table');
+            setTouring(false);
+          }}
+        />
+      )}
       <Recap open={recapOpen} onClose={() => setRecapOpen(false)} table={table} />
-      <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} me={me} seat={seat} onError={fail} onLeave={onLostSeat} />
+      <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} me={me} seat={seat} account={account} onError={fail} onLeave={onLostSeat} />
       <InviteSheet open={inviteOpen} onClose={() => setInviteOpen(false)} code={table.code} name={table.name} onCopied={() => toast(t.inviteCopied, 'success')} />
     </div>
   );
