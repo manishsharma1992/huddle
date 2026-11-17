@@ -7,8 +7,13 @@ spring:
     password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: 10
+      # Pin the schema so a DB role's own search_path (common on shared/corporate
+      # Postgres) can't redirect our tables into someone else's schema.
+      schema: ${DB_SCHEMA:public}
   flyway:
     enabled: true
+    default-schema: ${DB_SCHEMA:public}
+    schemas: ${DB_SCHEMA:public}
   threads:
     virtual:
       enabled: true
